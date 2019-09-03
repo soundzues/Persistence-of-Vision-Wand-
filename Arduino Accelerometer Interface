@@ -1,0 +1,115 @@
+#include <Wire.h>
+#include <Adafruit_LIS3DH.h>
+#include <Adafruit_Sensor.h>
+
+
+Adafruit_LIS3DH lis = Adafruit_LIS3DH();
+
+// global variables:
+boolean forward;
+// period calculation:
+  int Tavg;
+  int Tl;
+  int Tl_prev;
+  int Tl_cur;
+  int Th;
+  int Th_prev;
+  int Th_cur;
+
+
+void setup() {
+  Serial.begin(9600);
+
+  // start with left-to-right direction:
+  forward = true;
+
+  // initialize variables for period calculation:
+  Tavg = 500;
+  Tl = 0;
+  Tl_prev = 0;
+  Tl_cur = 0;
+  Th = 0;
+  Th_prev = 0;
+  Th_cur = 0;
+
+  if(!lis.begin(0x18)) 
+  {   
+    Serial.println("Could not start!");
+    while (1);
+  }
+  
+  lis.setRange(LIS3DH_RANGE_2_G); //SET RESOLUTION (2,4,8,16)
+}
+
+
+void loop() {
+    // accelerometer value
+    int value;
+
+    // accelerometer threshold values:
+    int al = -13000;
+    int ah = 13000;
+
+    
+    while(forward) {
+      // read in accelerometer:
+      lis.read();
+      value = lis.z;
+      
+      if(value<al) { //anything less than -13000
+	   // switch direction:
+	   Serial.println("Left to Right");
+        forward = false;
+
+        // record current time:
+        Tl_cur = millis();
+        Serial.print("Tl_cur: ");
+        Serial.println(Tl_cur);
+        Serial.println();
+        // calculate period:
+        if(Tl_prev!=0) {
+          Tl = Tl_cur - Tl_prev;
+          Serial.print("Tl: ");
+          Serial.println(Tl);
+          Serial.println();
+        }
+        Tl_prev = Tl_cur;
+      }
+    }
+    
+    while(!forward) {
+      // read in accelerometer:
+      lis.read();
+      value = lis.z;
+      
+      if(value>ah) { //anything more than 13000
+        // switch direction:
+	   Serial.println("Right to Left");
+        forward = true;
+
+        // record current time:
+        Th_cur = millis();
+        Serial.print("Th_cur: ");
+        Serial.println(Th_cur);
+        Serial.println();
+        // calculate period:
+        if(Th_prev!=0) {
+          Th = Th_cur - Tl_prev;
+          Serial.print("Th: ");
+          Serial.println(Th);
+          Serial.println();
+        }
+        Th_prev = Th_cur;
+      }
+    }
+
+    // calculate average period:
+    if(Tl!=0 && Th!=0) {
+      Tavg = (Tl+Th) / 2;
+    Serial.print("Tavg: ");
+    Serial.println(Tavg);
+    }
+    Serial.println();
+   
+    delay(200); //change to plot fast or slow
+}
